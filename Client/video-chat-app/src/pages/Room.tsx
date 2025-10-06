@@ -127,6 +127,7 @@ const Room = () => {
     });
 
     socket.on("user:joined", ({ email, id }: UserJoinedPayload) => {
+      console.log(`${email} joined the room.`);
       if (id !== socket.id) setRemoteSocketId(id);
     });
 
