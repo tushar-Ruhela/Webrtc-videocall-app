@@ -9,7 +9,7 @@ const app = express();
 
 const server = http.createServer(app);
 
-app.use(cors({ origin: "http://localhost:5173", methods: ["GET", "POST"] }));
+app.use(cors({ origin:import.meta.env.origin || "http://localhost:5173" , methods: ["GET", "POST"] }));
 app.use(express.json());
 
 app.use("/api", signupRoute);

@@ -54,7 +54,7 @@ const Navbar: React.FC = () => {
       if (!searchTerm.trim()) return setSearchResults([]);
       try {
         const res = await fetch(
-          `http://localhost:5000/api/users/search?query=${searchTerm}`
+          `${import.meta.env.VITE_API_URL}/api/users/search?query=${searchTerm}`
         );
         const data: User[] = await res.json();
         setSearchResults(data);

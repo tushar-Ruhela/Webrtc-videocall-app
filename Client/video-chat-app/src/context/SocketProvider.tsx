@@ -12,7 +12,10 @@ export const UseSocket = ():Socket|null => {
 
 const SocketProvider = ({ children }: { children: React.ReactNode }) => {
  const socket = useMemo(
-  () => io("http://10.118.243.208:5000", { transports: ["websocket"] }),
+
+  () =>
+    
+    io(import.meta.env.VITE_SOCKET_URL, { transports: ["websocket"] }),
   []
 );
   return (
