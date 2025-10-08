@@ -4,13 +4,12 @@ import { FaVideo, FaLock, FaComments, FaUsers } from "react-icons/fa";
 import Navbar from "../components/Navbar";
 
 const Mainfrontpage = () => {
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-900 text-white">
        <Navbar />
-  <main className="pt-16">  {/* padding to prevent overlap */}
-    {/* Page content here */}
+  <main className="pt-16">  
   </main>
-      {/* Hero Section */}
       <section className="flex-1 flex flex-col justify-center items-center text-center px-6 py-16 md:py-24">
         <h2 className="text-4xl md:text-6xl font-bold mb-6">
           Connect Seamlessly with <span className="text-blue-500">VideoMeet</span>
@@ -69,7 +68,7 @@ const Mainfrontpage = () => {
       {/* Footer */}
       <footer id="policies" className="bg-gray-950 text-gray-400 py-8 px-6 md:px-16">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm">&copy; {new Date().getFullYear()} MeetConnect. All rights reserved.</p>
+          <p className="text-sm">&copy; {new Date().getFullYear()} Videomeet. All rights reserved.</p>
           <div className="flex gap-6 text-sm">
             <a href="#" className="hover:text-white">Privacy Policy</a>
             <a href="#" className="hover:text-white">Terms of Service</a>
