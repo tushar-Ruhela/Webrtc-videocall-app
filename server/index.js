@@ -1,9 +1,10 @@
 const { Server } = require("socket.io");
+const chatHandler = require("./Chathandler");
 
 function initSocket(server) {
   const io = new Server(server, {
     cors: {
-      origin:process.env.origin || "http://localhost:5173",
+      origin: process.env.origin || "http://localhost:5173",
       methods: ["GET", "POST"],
     },
   });
@@ -14,22 +15,16 @@ function initSocket(server) {
   io.on("connection", (socket) => {
     console.log("New client connected:", socket.id);
 
+    // === existing events ===
     socket.on("room:join", (data) => {
-  const { email, room } = data;
-
-  emailToSocketId.set(email, socket.id);
-  socketIdToEmailId.set(socket.id, email);
-
-  socket.join(room);
-  console.log(`${email} joined room ${room}`);
-
-  // Notify the user that they successfully joined the room
-  io.to(socket.id).emit("room:joined-success", { room, email });
-
-  // Notify all other users in the room
-  socket.to(room).emit("user:joined", { email, id: socket.id });
-});
-
+      const { email, room } = data;
+      emailToSocketId.set(email, socket.id);
+      socketIdToEmailId.set(socket.id, email);
+      socket.join(room);
+      console.log(`${email} joined room ${room}`);
+      io.to(socket.id).emit("room:joined-success", { room, email });
+      socket.to(room).emit("user:joined", { email, id: socket.id });
+    });
 
     socket.on("user:call", ({ to, offer }) => {
       io.to(to).emit("incoming:call", { from: socket.id, offer });
@@ -46,6 +41,9 @@ function initSocket(server) {
     socket.on("peer:nego:done", ({ to, ans }) => {
       io.to(to).emit("peer:nego:final", { from: socket.id, ans });
     });
+
+    // === attach chat handler ===
+    chatHandler(io, socket);
 
     socket.on("disconnect", () => {
       console.log("❌ Client disconnected:", socket.id);
