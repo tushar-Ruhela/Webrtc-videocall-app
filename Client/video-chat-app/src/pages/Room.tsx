@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UseSocket } from "../context/SocketProvider";
-import { FaVideo, FaComments } from "react-icons/fa";
+import {
+  FaVideo,
+  FaVideoSlash,
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaComments,
+} from "react-icons/fa";
 import peer from "../services/peer";
 import Chatsection from "../components/Chatsection";
 
@@ -30,12 +36,19 @@ const Room = () => {
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Control states
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const getUserMediaStream = async () => {
     try {
-      return await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      return await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
     } catch (err) {
       console.error("Failed to get media:", err);
       return null;
@@ -99,11 +112,31 @@ const Room = () => {
     await peer.setRemoteDescription(ans);
   }, []);
 
+  // Audio / Video toggle functions
+  const handleToggleAudio = () => {
+    if (myStream) {
+      myStream
+        .getAudioTracks()
+        .forEach((track) => (track.enabled = !track.enabled));
+      setIsAudioEnabled((prev) => !prev);
+    }
+  };
+
+  const handleToggleVideo = () => {
+    if (myStream) {
+      myStream
+        .getVideoTracks()
+        .forEach((track) => (track.enabled = !track.enabled));
+      setIsVideoEnabled((prev) => !prev);
+    }
+  };
+
   useEffect(() => {
     const peerConnection = peer.getPeer();
     peerConnection.ontrack = (event) => {
       const remoteStream = event.streams[0];
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+      if (remoteVideoRef.current)
+        remoteVideoRef.current.srcObject = remoteStream;
     };
     peerConnection.onnegotiationneeded = handleNegoNeeded;
   }, [handleNegoNeeded]);
@@ -111,16 +144,15 @@ const Room = () => {
   useEffect(() => {
     if (!socket) return;
 
-    // join room and receive existing users
     const roomId = window.location.pathname.split("/").pop() || "default-room";
     const myEmail = "anonymous";
 
-    const tryJoin = () => {
+    const joinRoom = () => {
       socket.emit("room:join", { email: myEmail, room: roomId });
     };
 
-    if (socket.connected) tryJoin();
-    else socket.on("connect", tryJoin);
+    if (socket.connected) joinRoom();
+    else socket.on("connect", joinRoom);
 
     socket.on("room:users", (users: { id: string; email: string }[]) => {
       if (users.length > 0) setRemoteSocketId(users[0].id);
@@ -137,7 +169,7 @@ const Room = () => {
     socket.on("peer:nego:final", handleNegoFinal);
 
     return () => {
-      socket.off("connect", tryJoin);
+      socket.off("connect", joinRoom);
       socket.off("room:users");
       socket.off("user:joined");
       socket.off("incoming:call", handleIncomingCall);
@@ -189,21 +221,39 @@ const Room = () => {
           </div>
         </div>
 
+        {/* Control Buttons */}
         <div className="flex items-center justify-center gap-4 md:gap-6 mt-4 md:mt-6 flex-wrap">
-          <button className="p-3 md:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition">
-            🎤
+          <button
+            onClick={handleToggleAudio}
+            className="p-3 md:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition"
+          >
+            {isAudioEnabled ? (
+              <FaMicrophone size={20} />
+            ) : (
+              <FaMicrophoneSlash size={20} color="red" />
+            )}
           </button>
+
+          <button
+            onClick={handleToggleVideo}
+            className="p-3 md:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition"
+          >
+            {isVideoEnabled ? (
+              <FaVideo size={20} />
+            ) : (
+              <FaVideoSlash size={20} color="red" />
+            )}
+          </button>
+
           {remoteSocketId && (
             <button
               onClick={handleCallUser}
               className="p-3 md:p-4 bg-blue-600 rounded-full hover:bg-blue-500 transition"
             >
-              <FaVideo size={20} />
+              📞 Call
             </button>
           )}
-          <button className="p-3 md:p-4 bg-red-600 rounded-full hover:bg-red-500 transition">
-            📞
-          </button>
+
           <button
             onClick={() => setChatOpen(true)}
             className="p-3 md:p-4 bg-gray-800 rounded-full hover:bg-gray-700 transition"
@@ -214,7 +264,13 @@ const Room = () => {
       </div>
 
       {/* Chat Section */}
-      <Chatsection isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <Chatsection
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        room={window.location.pathname.split("/").pop() || "default-room"}
+        userEmail="anonymous" // or replace with actual logged-in email
+        isConnected={!!remoteSocketId}
+      />
     </div>
   );
 };

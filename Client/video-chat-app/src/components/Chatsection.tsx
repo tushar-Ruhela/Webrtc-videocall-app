@@ -1,12 +1,59 @@
 // src/components/Chat.tsx
-import React from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { UseSocket } from "../context/SocketProvider";
 
 interface ChatProps {
   isOpen: boolean;
   onClose: () => void;
+  room: string | null;       // room to send/receive messages
+  userEmail: string | null;  // current user's email
+  isConnected: boolean;      // true when user joined a room
 }
 
-const Chatsection: React.FC<ChatProps> = ({ isOpen, onClose }) => {
+const Chatsection: React.FC<ChatProps> = ({ isOpen, onClose, room, userEmail, isConnected }) => {
+  const socket = UseSocket();
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<
+    { sender: string; message: string; time: string }[]
+  >([]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when a new message arrives
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Listen for incoming messages
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceive = (data: { sender: string; message: string; time: string }) => {
+      setMessages((prev) => [...prev, data]);
+    };
+
+    socket.on("chat:receive", handleReceive);
+
+    return () => {
+      socket.off("chat:receive", handleReceive);
+    };
+  }, [socket]);
+
+  // Send a message
+  const sendMessage = () => {
+    if (!socket || !room || !userEmail || message.trim() === "") return;
+
+    const newMessage = {
+      sender: userEmail,
+      message: message.trim(),
+      time: new Date().toLocaleTimeString(),
+    };
+
+    socket.emit("chat:send", { room, sender: userEmail, message });
+    setMessages((prev) => [...prev, newMessage]);
+    setMessage("");
+  };
+
   return (
     <div
       className={`fixed md:static top-0 right-0 h-full w-80 bg-gray-850 border-l border-gray-700 flex flex-col transform transition-transform duration-300 z-50
@@ -25,25 +72,43 @@ const Chatsection: React.FC<ChatProps> = ({ isOpen, onClose }) => {
 
       {/* Chat messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <div className="self-start bg-gray-800 p-3 rounded-lg max-w-[80%]">
-          <p className="text-sm text-gray-200">Hey! Can you hear me?</p>
-        </div>
-        <div className="self-end bg-blue-600 p-3 rounded-lg max-w-[80%] ml-auto">
-          <p className="text-sm">Yes! Everything is clear.</p>
-        </div>
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`p-3 rounded-lg max-w-[80%] ${
+              msg.sender === userEmail
+                ? "bg-blue-600 self-end ml-auto"
+                : "bg-gray-800 self-start"
+            }`}
+          >
+            <p className="text-sm text-gray-200">{msg.message}</p>
+            <p className="text-[10px] text-gray-400 mt-1">{msg.time}</p>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area (UI only) */}
+      {/* Input area */}
       <div className="p-3 border-t border-gray-700 flex items-center gap-2">
         <input
           type="text"
-          placeholder="Send a message..."
-          className="flex-1 bg-gray-800 p-2 rounded-lg outline-none text-sm"
-          disabled
+          placeholder={
+            isConnected ? "Send a message..." : "Connect to start chatting"
+          }
+          className="flex-1 bg-gray-800 p-2 rounded-lg outline-none text-sm text-gray-200"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          disabled={!isConnected}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
         <button
-          className="p-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition"
-          disabled
+          onClick={sendMessage}
+          className={`p-2 rounded-lg transition ${
+            isConnected
+              ? "bg-blue-600 hover:bg-blue-500"
+              : "bg-gray-600 cursor-not-allowed"
+          }`}
+          disabled={!isConnected}
         >
           Send
         </button>
