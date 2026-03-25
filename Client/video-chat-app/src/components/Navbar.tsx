@@ -1,19 +1,12 @@
 import { useState, useEffect } from "react";
-import { Menu, X, Search } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { FaVideo, FaUserCircle } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
-interface NavLink {
-  label: string;
-  href: string;
-}
-
-const navLinks: NavLink[] = [
+const NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Services", href: "/services" },
+  { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Contact Us", href: "/contact" },
 ];
 
 interface User {
@@ -24,202 +17,338 @@ interface User {
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // Detect scroll for navbar bg opacity change
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-    // Listen for login/logout in other tabs
-    const handleStorageChange = () => {
-      const updatedUser = localStorage.getItem("user");
-      if (updatedUser) setUser(JSON.parse(updatedUser));
-      else setUser(null);
+  // Sync auth state
+  useEffect(() => {
+    const sync = () => {
+      const stored = localStorage.getItem("user");
+      setUser(stored ? JSON.parse(stored) : null);
     };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    sync();
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     setUser(null);
-    navigate("/login");
+    navigate("/");
   };
 
-  // Live search logic
-  useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
-      if (!searchTerm.trim()) return setSearchResults([]);
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/users/search?query=${searchTerm}`
-        );
-        const data: User[] = await res.json();
-        setSearchResults(data);
-      } catch (err) {
-        console.error(err);
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm]);
+  const isActive = (href: string) =>
+    href === "/" ? location.pathname === "/" : location.pathname.startsWith(href.replace("/#", "/"));
 
   return (
-    <nav className="bg-white shadow-md fixed w-full top-0 left-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between gap-4 items-center">
+    <nav
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        transition: "background 0.3s, border-color 0.3s, backdrop-filter 0.3s",
+        background: scrolled ? "rgba(8,8,16,0.9)" : "rgba(8,8,16,0.4)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: `1px solid ${scrolled ? "rgba(255,255,255,0.07)" : "transparent"}`,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+          padding: "0 1.5rem",
+          height: "64px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+        }}
+      >
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-3">
-          <FaVideo size={40} color="blue" />
-          <span className="text-2xl font-semibold text-blue-700">VideoMeet</span>
+        <Link
+          to="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+            textDecoration: "none",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: "linear-gradient(135deg, #6c63ff, #c084fc)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 20px rgba(108,99,255,0.45)",
+            }}
+          >
+            <FaVideo style={{ color: "#fff", fontSize: 16 }} />
+          </div>
+          <span
+            className="font-display"
+            style={{
+              fontSize: "1.2rem",
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #fff 40%, #8b85ff)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            VideoMeet
+          </span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6 font-medium text-gray-700">
-          {navLinks.map((link) => (
+        {/* Desktop Nav */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "2rem",
+            flex: 1,
+            justifyContent: "center",
+          }}
+          className="hidden md:flex"
+        >
+          {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               to={link.href}
-              className="hover:text-blue-600 transition"
+              style={{
+                textDecoration: "none",
+                fontSize: "0.9rem",
+                fontWeight: 500,
+                color: isActive(link.href) ? "#fff" : "var(--text-secondary)",
+                letterSpacing: "0.02em",
+                transition: "color 0.2s",
+                fontFamily: "DM Sans, sans-serif",
+              }}
+              onMouseEnter={(e) =>
+                ((e.target as HTMLElement).style.color = "#fff")
+              }
+              onMouseLeave={(e) =>
+                ((e.target as HTMLElement).style.color = isActive(link.href)
+                  ? "#fff"
+                  : "var(--text-secondary)")
+              }
             >
               {link.label}
             </Link>
           ))}
+        </div>
 
-          {/* Search Input */}
-          <div className="relative">
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search users..."
-              className="px-4 py-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-            <Search className="w-5 h-5 absolute right-3 top-2.5 text-gray-400" />
-
-            {/* Search Results Dropdown */}
-            {searchResults.length > 0 && (
-              <div className="absolute mt-1 w-full bg-white border border-gray-200 shadow-lg rounded-lg max-h-60 overflow-auto z-50">
-                {searchResults.map((u) => (
-                  <div
-                    key={u.email}
-                    className="px-4 py-2 hover:bg-blue-100 cursor-pointer"
-                    onClick={() => {
-                      navigate(`/profile/${u.email}`);
-                      setSearchTerm("");
-                      setSearchResults([]);
-                    }}
-                  >
-                    {u.name} ({u.email})
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Auth Section */}
-          <div className="flex items-center space-x-3">
-            {user ? (
-              <div className="relative group">
-                <button className="flex items-center space-x-2 focus:outline-none">
-                  <FaUserCircle size={28} />
-                  <span className="text-gray-800">{user.name}</span>
+        {/* Desktop Auth */}
+        <div
+          style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          className="hidden md:flex"
+        >
+          {user ? (
+            <>
+              <Link
+                to="/home"
+                style={{
+                  padding: "0.5rem 1rem",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "var(--text-secondary)",
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)";
+                  (e.currentTarget as HTMLElement).style.color = "#fff";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                }}
+              >
+                <FaVideo size={12} />
+                Dashboard
+              </Link>
+              <div className="relative group" style={{ position: "relative" }}>
+                <button
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    background: "rgba(108,99,255,0.12)",
+                    border: "1px solid var(--border-accent)",
+                    borderRadius: 8,
+                    padding: "0.45rem 0.85rem",
+                    color: "var(--text-primary)",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  <FaUserCircle size={16} style={{ color: "var(--accent-bright)" }} />
+                  {user.name}
                 </button>
-                <div className="absolute right-0 mt-2 hidden group-hover:block bg-white border rounded-lg shadow-md w-36">
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 8px)",
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    minWidth: 140,
+                    overflow: "hidden",
+                    opacity: 0,
+                    pointerEvents: "none",
+                    transform: "translateY(-8px)",
+                    transition: "opacity 0.2s, transform 0.2s",
+                  }}
+                  className="group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0"
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.opacity = "1";
+                    el.style.pointerEvents = "auto";
+                    el.style.transform = "translateY(0)";
+                  }}
+                >
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                    style={{
+                      width: "100%",
+                      padding: "0.6rem 1rem",
+                      background: "none",
+                      border: "none",
+                      color: "#ef4444",
+                      textAlign: "left",
+                      fontSize: "0.875rem",
+                      cursor: "pointer",
+                      fontFamily: "DM Sans, sans-serif",
+                    }}
                   >
-                    Logout
+                    Sign out
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="flex items-center space-x-1">
-                <Link to="/login" className="hover:text-blue-600">
-                  Login
-                </Link>
-                <span>/</span>
-                <Link to="/signup" className="hover:text-blue-600">
-                  Signup
-                </Link>
-              </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                style={{
+                  padding: "0.5rem 1rem",
+                  borderRadius: 8,
+                  color: "var(--text-secondary)",
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "#fff")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--text-secondary)")}
+              >
+                Log in
+              </Link>
+              <Link
+                to="/signup"
+                className="btn-glow"
+                style={{
+                  padding: "0.5rem 1.1rem",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
 
-        {/* Mobile Menu Button */}
+        {/* Mobile menu toggle */}
         <button
-          className="md:hidden text-gray-700"
-          onClick={() => setIsOpen((prev) => !prev)}
+          className="md:hidden"
+          onClick={() => setIsOpen((p) => !p)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            padding: 6,
+          }}
         >
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {isOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-white shadow-md px-6 py-4 space-y-4 font-medium text-gray-700">
-          {navLinks.map((link) => (
+        <div
+          style={{
+            background: "rgba(8,8,16,0.97)",
+            borderTop: "1px solid var(--border)",
+            padding: "1.25rem 1.5rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+          className="md:hidden"
+        >
+          {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               to={link.href}
-              className="block hover:text-blue-600 transition"
+              onClick={() => setIsOpen(false)}
+              style={{
+                textDecoration: "none",
+                color: isActive(link.href) ? "#fff" : "var(--text-secondary)",
+                fontSize: "1rem",
+                fontWeight: 500,
+              }}
             >
               {link.label}
             </Link>
           ))}
-
-          <div>
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search users..."
-              className="w-full px-4 py-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-            {/* Optional: show search results below mobile search */}
-            {searchResults.length > 0 && (
-              <div className="mt-1 w-full bg-white border border-gray-200 shadow-lg rounded-lg max-h-60 overflow-auto z-50">
-                {searchResults.map((u) => (
-                  <div
-                    key={u.email}
-                    className="px-4 py-2 hover:bg-blue-100 cursor-pointer"
-                    onClick={() => {
-                      navigate(`/profile/${u.email}`);
-                      setSearchTerm("");
-                      setSearchResults([]);
-                      setIsOpen(false);
-                    }}
-                  >
-                    {u.name} ({u.email})
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
+          <hr style={{ borderColor: "var(--border)", margin: "0.25rem 0" }} />
           {user ? (
-            <div className="flex justify-between items-center">
-              <span className="flex items-center gap-2">
-                <FaUserCircle size={24} /> {user.name}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <FaUserCircle /> {user.name}
               </span>
               <button
-                onClick={handleLogout}
-                className="text-sm text-blue-600 hover:underline"
+                onClick={() => { handleLogout(); setIsOpen(false); }}
+                style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.875rem" }}
               >
-                Logout
+                Sign out
               </button>
             </div>
           ) : (
-            <div className="flex space-x-2">
-              <Link to="/login" className="hover:text-blue-600">
-                Login
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <Link to="/login" onClick={() => setIsOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.9rem" }}>
+                Log in
               </Link>
-              <span>/</span>
-              <Link to="/signup" className="hover:text-blue-600">
-                Signup
+              <Link to="/signup" onClick={() => setIsOpen(false)} className="btn-glow" style={{ padding: "0.45rem 1rem", borderRadius: 8, textDecoration: "none", fontSize: "0.875rem" }}>
+                Sign up
               </Link>
             </div>
           )}

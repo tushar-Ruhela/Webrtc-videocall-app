@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import type { SubmitHandler } from "react-hook-form";
-import Navbar from "../components/Navbar";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { FaVideo } from "react-icons/fa";
 
 interface LoginPayload {
@@ -26,23 +26,14 @@ const Login = () => {
       });
 
       const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Invalid credentials");
 
-      if (!response.ok) {
-        throw new Error(result.error || "Invalid credentials");
-      }
-
-      // ✅ Store tokens and user info
       localStorage.setItem("access_token", result.access_token);
       localStorage.setItem("refresh_token", result.refresh_token);
-    localStorage.setItem(
-  "user",
-  JSON.stringify({ name: result.user.username, email: result.user.email })
-);
-
+      localStorage.setItem("user", JSON.stringify({ name: result.user.username, email: result.user.email }));
 
       window.location.href = "/home";
     } catch (error: any) {
-      console.error("❌ Login failed:", error);
       setErrorMsg(error.message || "Something went wrong");
     } finally {
       setLoading(false);
@@ -50,102 +41,151 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-purple-100 overflow-y-auto">
-      {/* Navbar */}
-      <Navbar />
+    <div
+      className="noise"
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg-base)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem 1rem",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Background orbs */}
+      <div
+        className="orb"
+        style={{
+          width: 500, height: 500,
+          background: "radial-gradient(circle, rgba(108,99,255,0.2) 0%, transparent 70%)",
+          top: -150, left: -100,
+          animationDuration: "10s",
+        }}
+      />
+      <div
+        className="orb"
+        style={{
+          width: 400, height: 400,
+          background: "radial-gradient(circle, rgba(192,132,252,0.15) 0%, transparent 70%)",
+          bottom: -100, right: -100,
+          animationDuration: "12s",
+        }}
+      />
 
-      {/* Main Section */}
-      <div className="flex flex-1 items-center justify-center px-4 mt-24 mb-10">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 p-8 md:p-10 transition-transform transform hover:scale-[1.01]">
-          {/* Logo / Header */}
-          <div className="flex flex-col items-center mb-6">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <FaVideo className="text-blue-600" size={40} />
-            </div>
-            <h1 className="text-3xl font-semibold text-gray-800 mt-3">
-              Welcome Back
-            </h1>
-            <p className="text-gray-500 text-sm mt-1 text-center">
-              Log in to join your meetings and connect instantly.
-            </p>
+      {/* Card */}
+      <div
+        className="glass-card reveal"
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          padding: "2.5rem 2rem",
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        {/* Logo */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "2rem" }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              background: "linear-gradient(135deg, #6c63ff, #c084fc)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 24px rgba(108,99,255,0.45)",
+              marginBottom: "1rem",
+            }}
+          >
+            <FaVideo style={{ color: "#fff", fontSize: 22 }} />
+          </div>
+          <h1
+            className="font-display gradient-text"
+            style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: "0.35rem" }}
+          >
+            Welcome back
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+            Sign in to your VideoMeet account
+          </p>
+        </div>
+
+        {/* Error */}
+        {errorMsg && (
+          <div
+            style={{
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 8,
+              padding: "0.75rem 1rem",
+              color: "#fca5a5",
+              fontSize: "0.875rem",
+              marginBottom: "1.25rem",
+              textAlign: "center",
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+          <div>
+            <label style={{ display: "block", color: "var(--text-secondary)", fontSize: "0.85rem", fontWeight: 500, marginBottom: "0.4rem" }}>
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="input-dark"
+              placeholder="you@example.com"
+              {...register("email", { required: "Email is required" })}
+            />
+            {errors.email && <p style={{ color: "#f87171", fontSize: "0.78rem", marginTop: "0.3rem" }}>{errors.email.message}</p>}
           </div>
 
-          {/* Error */}
-          {errorMsg && (
-            <div className="text-red-600 text-center text-sm mb-3 bg-red-100 p-2 rounded-md">
-              {errorMsg}
-            </div>
-          )}
+          <div>
+            <label style={{ display: "block", color: "var(--text-secondary)", fontSize: "0.85rem", fontWeight: 500, marginBottom: "0.4rem" }}>
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              className="input-dark"
+              placeholder="Enter your password"
+              {...register("password", { required: "Password is required" })}
+            />
+            {errors.password && <p style={{ color: "#f87171", fontSize: "0.78rem", marginTop: "0.3rem" }}>{errors.password.message}</p>}
+          </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-gray-700 font-medium mb-1">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                {...register("email", { required: "Email is required" })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="you@example.com"
-              />
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-              )}
-            </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-glow"
+            style={{
+              padding: "0.85rem",
+              borderRadius: 10,
+              fontSize: "0.95rem",
+              marginTop: "0.25rem",
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
 
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-gray-700 font-medium mb-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                {...register("password", { required: "Password is required" })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Enter your password"
-              />
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Login Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-2 mt-2 rounded-lg text-white font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition ${
-                loading ? "opacity-70 cursor-not-allowed" : ""
-              }`}
-            >
-              {loading ? "Logging in..." : "Login"}
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center my-2">
-              <hr className="flex-grow border-gray-300" />
-              <span className="px-2 text-gray-400 text-sm">OR</span>
-              <hr className="flex-grow border-gray-300" />
-            </div>
-
-            {/* Sign Up */}
-            <p className="text-center text-gray-600 text-sm">
-              Don’t have an account?{" "}
-              <a href="/signup" className="text-blue-600 font-medium hover:underline">
-                Sign up
-              </a>
-            </p>
-          </form>
-        </div>
+          <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+            Don't have an account?{" "}
+            <Link to="/signup" style={{ color: "var(--accent-bright)", textDecoration: "none", fontWeight: 600 }}>
+              Sign up free
+            </Link>
+          </p>
+        </form>
       </div>
-
-      {/* Footer */}
-      <footer className="text-center py-6 text-sm text-gray-500">
-        © {new Date().getFullYear()} VideoCallApp · All rights reserved
-      </footer>
     </div>
   );
 };
