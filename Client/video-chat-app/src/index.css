@@ -232,3 +232,48 @@ body {
 .control-btn-active { background: var(--accent); color: #fff; box-shadow: 0 0 20px var(--accent-glow); }
 .control-btn-active:hover { background: var(--accent-bright); }
 .control-btn-muted  { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
+
+/* ─── Chat Sidebar ──────────────────────────────────────────────────────── */
+.chat-sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 50;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .chat-sidebar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    height: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .chat-sidebar.open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (min-width: 769px) {
+  .chat-sidebar {
+    position: relative;
+    width: 0;
+    min-width: 0;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .chat-sidebar.open {
+    width: 320px;
+    min-width: 320px;
+  }
+}

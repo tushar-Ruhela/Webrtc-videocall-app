@@ -1,4 +1,5 @@
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import Home from "./pages/Home";
 import Room from "./pages/Room";
 import Login from "./pages/Login";
@@ -16,9 +17,30 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return token ? <Navigate to="/home" replace /> : <>{children}</>;
 };
 
+const ScrollToLocation = () => {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (hash) {
+      setTimeout(() => {
+        const id = hash.replace("#", "");
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 0);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash]);
+
+  return null;
+};
+
 const App = () => {
   return (
     <div>
+      <ScrollToLocation />
       <Routes>
         {/* Public / marketing pages */}
         <Route path="/" element={<Mainfrontpage />} />

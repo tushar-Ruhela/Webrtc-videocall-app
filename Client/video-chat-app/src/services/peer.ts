@@ -1,6 +1,6 @@
 // src/services/peer.ts
-// Improved WebRTC peer service with ICE candidate queuing, TURN server support,
-// and screenShare / peer-reset capabilities.
+// WebRTC peer service with ICE candidate queuing, TURN support,
+// screen share, and clean reset on call end.
 
 const ICE_CONFIG: RTCConfiguration = {
   iceServers: [
@@ -53,6 +53,7 @@ class PeerService {
   /**
    * Destroy current peer and create a fresh one.
    * Call this when ending a call so next call starts clean.
+   * Returns the NEW peer so callers can re-wire event handlers.
    */
   resetPeer(): RTCPeerConnection {
     try {
@@ -78,14 +79,11 @@ class PeerService {
     offer: RTCSessionDescriptionInit
   ): Promise<RTCSessionDescriptionInit> {
     await this.peer.setRemoteDescription(new RTCSessionDescription(offer));
+    this.remoteDescSet = true;
     await this.flushIceCandidates();
     const ans = await this.peer.createAnswer();
     await this.peer.setLocalDescription(ans);
     return ans;
-  }
-
-  async setLocalDescription(desc: RTCSessionDescriptionInit): Promise<void> {
-    await this.peer.setLocalDescription(new RTCSessionDescription(desc));
   }
 
   /**
@@ -116,7 +114,6 @@ class PeerService {
   }
 
   private async flushIceCandidates(): Promise<void> {
-    this.remoteDescSet = true;
     const queue = [...this.iceCandidateQueue];
     this.iceCandidateQueue = [];
     for (const candidate of queue) {

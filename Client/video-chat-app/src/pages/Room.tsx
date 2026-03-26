@@ -11,6 +11,7 @@ import {
   FaComments,
   FaDesktop,
   FaPhoneSlash,
+  FaPhone,
 } from "react-icons/fa";
 
 interface UserJoinedPayload  { email: string; id: string; }
@@ -32,10 +33,17 @@ const Room = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"waiting" | "connected" | "disconnected">("waiting");
+  const [callActive, setCallActive] = useState(false);
 
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef  = useRef<HTMLVideoElement | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  // Use a ref for remoteSocketId to avoid stale closures in event handlers
+  const remoteSocketIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    remoteSocketIdRef.current = remoteSocketId;
+  }, [remoteSocketId]);
 
   // Get the logged-in user's email
   const userEmail = (() => {
@@ -44,6 +52,44 @@ const Room = () => {
       return u ? JSON.parse(u).email : "anonymous";
     } catch { return "anonymous"; }
   })();
+
+  // ─── Wire RTCPeerConnection events ────────────────────────────────────────
+
+  const wirePeerEvents = useCallback(() => {
+    const peerConn = peer.getPeer();
+
+    peerConn.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    // Forward local ICE candidates to the remote peer
+    peerConn.onicecandidate = (event) => {
+      const toId = remoteSocketIdRef.current;
+      if (event.candidate && toId && socket) {
+        socket.emit("ice:candidate", { to: toId, candidate: event.candidate.toJSON() });
+      }
+    };
+
+    peerConn.onconnectionstatechange = () => {
+      const state = peerConn.connectionState;
+      console.log("WebRTC connection state:", state);
+      if (state === "connected") {
+        setConnectionStatus("connected");
+        setCallActive(true);
+      }
+      if (state === "disconnected" || state === "failed" || state === "closed") {
+        setConnectionStatus("disconnected");
+        setCallActive(false);
+      }
+    };
+  }, [socket]);
+
+  // Wire events on mount and when socket changes
+  useEffect(() => {
+    wirePeerEvents();
+  }, [wirePeerEvents]);
 
   // ─── Media helpers ────────────────────────────────────────────────────────
 
@@ -58,11 +104,10 @@ const Room = () => {
 
   /**
    * Send all local tracks to the peer connection.
-   * Must be called AFTER the stream is set in state.
+   * Avoids adding duplicate tracks.
    */
   const sendStreams = useCallback((stream: MediaStream) => {
     const peerConn = peer.getPeer();
-    // Avoid adding duplicate tracks
     const existingSenders = peerConn.getSenders().map((s) => s.track?.id);
     stream.getTracks().forEach((track) => {
       if (!existingSenders.includes(track.id)) {
@@ -71,45 +116,19 @@ const Room = () => {
     });
   }, []);
 
-  // ─── Call user ────────────────────────────────────────────────────────────
-
-  const handleCallUser = useCallback(async () => {
-    const stream = await getUserMedia();
-    if (!stream) return;
-    setMyStream(stream);
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-    sendStreams(stream);
-    const offer = await peer.getOffer();
-    socket?.emit("user:call", { to: remoteSocketId, offer });
-  }, [remoteSocketId, socket, sendStreams]);
-
-  // ─── Incoming call ────────────────────────────────────────────────────────
-
-  const handleIncomingCall = useCallback(
-    async ({ from, offer }: IncomingCallPayload) => {
-      const stream = await getUserMedia();
-      if (!stream) return;
-      setMyStream(stream);
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      sendStreams(stream);
-      const ans = await peer.getAnswer(offer);
-      socket?.emit("call:accepted", { to: from, ans });
-      setConnectionStatus("connected");
-    },
-    [sendStreams, socket]
-  );
-
-  const handleCallAccepted = useCallback(async ({ ans }: CallAcceptedPayload) => {
-    await peer.setRemoteDescription(ans);
-    setConnectionStatus("connected");
-  }, []);
-
   // ─── Negotiation ──────────────────────────────────────────────────────────
 
   const handleNegoNeeded = useCallback(async () => {
+    const toId = remoteSocketIdRef.current;
+    if (!toId || !socket) return;
     const offer = await peer.getOffer();
-    socket?.emit("peer:nego:needed", { offer, to: remoteSocketId });
-  }, [remoteSocketId, socket]);
+    socket.emit("peer:nego:needed", { offer, to: toId });
+  }, [socket]);
+
+  useEffect(() => {
+    const peerConn = peer.getPeer();
+    peerConn.onnegotiationneeded = handleNegoNeeded;
+  }, [handleNegoNeeded]);
 
   const handleNegoIncoming = useCallback(
     async ({ from, offer }: NegoNeededPayload) => {
@@ -134,37 +153,83 @@ const Room = () => {
     []
   );
 
+  // ─── Call user ────────────────────────────────────────────────────────────
+
+  const handleCallUser = useCallback(async () => {
+    const toId = remoteSocketIdRef.current;
+    if (!toId || !socket) return;
+
+    const stream = await getUserMedia();
+    if (!stream) return;
+
+    setMyStream(stream);
+    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+    // Add tracks FIRST so they are included in the offer SDP
+    sendStreams(stream);
+
+    // Then create and send the offer
+    const offer = await peer.getOffer();
+    socket.emit("user:call", { to: toId, offer });
+  }, [socket, sendStreams]);
+
+  // ─── Incoming call ────────────────────────────────────────────────────────
+
+  const handleIncomingCall = useCallback(
+    async ({ from, offer }: IncomingCallPayload) => {
+      const stream = await getUserMedia();
+      if (!stream) return;
+
+      setMyStream(stream);
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      // Add tracks before creating the answer
+      sendStreams(stream);
+
+      const ans = await peer.getAnswer(offer);
+      socket?.emit("call:accepted", { to: from, ans });
+    },
+    [sendStreams, socket]
+  );
+
+  const handleCallAccepted = useCallback(async ({ ans }: CallAcceptedPayload) => {
+    await peer.setRemoteDescription(ans);
+    // Connection state will update via onconnectionstatechange
+  }, []);
+
   // ─── Media toggles ────────────────────────────────────────────────────────
 
   const toggleAudio = () => {
     if (!myStream) return;
-    myStream.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
-    setIsAudioEnabled((p) => !p);
+    const enabled = !isAudioEnabled;
+    myStream.getAudioTracks().forEach((t) => (t.enabled = enabled));
+    setIsAudioEnabled(enabled);
   };
 
   const toggleVideo = () => {
     if (!myStream) return;
-    myStream.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
-    setIsVideoEnabled((p) => !p);
+    const enabled = !isVideoEnabled;
+    myStream.getVideoTracks().forEach((t) => (t.enabled = enabled));
+    setIsVideoEnabled(enabled);
   };
 
   // ─── Screen sharing ───────────────────────────────────────────────────────
 
+  const restoreCamera = async () => {
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    const cameraStream = await getUserMedia();
+    if (!cameraStream) return;
+    setMyStream(cameraStream);
+    if (localVideoRef.current) localVideoRef.current.srcObject = cameraStream;
+    const videoTrack = cameraStream.getVideoTracks()[0];
+    if (videoTrack) await peer.replaceVideoTrack(videoTrack);
+    setIsScreenSharing(false);
+  };
+
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
-      // Stop screen sharing — restore camera
-      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      screenStreamRef.current = null;
-
-      const cameraStream = await getUserMedia();
-      if (!cameraStream) return;
-      setMyStream(cameraStream);
-      if (localVideoRef.current) localVideoRef.current.srcObject = cameraStream;
-
-      const videoTrack = cameraStream.getVideoTracks()[0];
-      if (videoTrack) await peer.replaceVideoTrack(videoTrack);
-
-      setIsScreenSharing(false);
+      await restoreCamera();
     } else {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -172,24 +237,12 @@ const Room = () => {
           audio: false,
         });
         screenStreamRef.current = screenStream;
-
         if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
-
         const screenTrack = screenStream.getVideoTracks()[0];
         await peer.replaceVideoTrack(screenTrack);
         setIsScreenSharing(true);
-
-        // When user stops via browser button
-        screenTrack.onended = async () => {
-          screenStreamRef.current = null;
-          const cameraStream = await getUserMedia();
-          if (!cameraStream) return;
-          setMyStream(cameraStream);
-          if (localVideoRef.current) localVideoRef.current.srcObject = cameraStream;
-          const videoTrack = cameraStream.getVideoTracks()[0];
-          if (videoTrack) await peer.replaceVideoTrack(videoTrack);
-          setIsScreenSharing(false);
-        };
+        // Auto-restore when user stops via browser button
+        screenTrack.onended = restoreCamera;
       } catch (err) {
         console.error("Screen share error:", err);
       }
@@ -203,35 +256,15 @@ const Room = () => {
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     socket?.emit("call:leave", { room: roomId });
     peer.resetPeer();
+    wirePeerEvents(); // Re-wire events on the new peer instance
+    setMyStream(null);
+    setCallActive(false);
+    setConnectionStatus("waiting");
+    setRemoteSocketId(null);
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
     navigate("/home");
-  }, [myStream, socket, roomId, navigate]);
-
-  // ─── RTCPeerConnection event wiring ──────────────────────────────────────
-
-  useEffect(() => {
-    const peerConn = peer.getPeer();
-
-    peerConn.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    peerConn.onnegotiationneeded = handleNegoNeeded;
-
-    // Forward local ICE candidates to the remote peer
-    peerConn.onicecandidate = (event) => {
-      if (event.candidate && remoteSocketId) {
-        socket?.emit("ice:candidate", { to: remoteSocketId, candidate: event.candidate.toJSON() });
-      }
-    };
-
-    peerConn.onconnectionstatechange = () => {
-      const state = peerConn.connectionState;
-      if (state === "connected") setConnectionStatus("connected");
-      if (state === "disconnected" || state === "failed") setConnectionStatus("disconnected");
-    };
-  }, [handleNegoNeeded, remoteSocketId, socket]);
+  }, [myStream, socket, roomId, navigate, wirePeerEvents]);
 
   // ─── Socket event wiring ─────────────────────────────────────────────────
 
@@ -250,14 +283,14 @@ const Room = () => {
       const others = users.filter((u) => u.id !== socket.id);
       if (others.length > 0) {
         setRemoteSocketId(others[0].id);
-        setConnectionStatus("connected");
+        remoteSocketIdRef.current = others[0].id;
       }
     });
 
-    socket.on("user:joined", ({ email: _email, id }: UserJoinedPayload) => {
+    socket.on("user:joined", ({ id }: UserJoinedPayload) => {
       if (id !== socket.id) {
         setRemoteSocketId(id);
-        setConnectionStatus("connected");
+        remoteSocketIdRef.current = id;
       }
     });
 
@@ -269,7 +302,9 @@ const Room = () => {
 
     socket.on("user:left", () => {
       setRemoteSocketId(null);
+      remoteSocketIdRef.current = null;
       setConnectionStatus("waiting");
+      setCallActive(false);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     });
 
@@ -288,8 +323,13 @@ const Room = () => {
 
   // ─── Status indicator ─────────────────────────────────────────────────────
 
-  const statusColor = connectionStatus === "connected" ? "#22c55e" : connectionStatus === "disconnected" ? "#ef4444" : "#f59e0b";
-  const statusLabel = connectionStatus === "connected" ? "Connected" : connectionStatus === "disconnected" ? "Disconnected" : "Waiting for participant…";
+  const statusColor =
+    connectionStatus === "connected" ? "#22c55e" :
+    connectionStatus === "disconnected" ? "#ef4444" : "#f59e0b";
+  const statusLabel =
+    connectionStatus === "connected" ? "Connected" :
+    connectionStatus === "disconnected" ? "Disconnected" :
+    remoteSocketId ? "Participant in room — click Call to start" : "Waiting for participant…";
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -311,6 +351,7 @@ const Room = () => {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          minWidth: 0,
         }}
       >
         {/* Top bar */}
@@ -381,9 +422,10 @@ const Room = () => {
           <div
             className="video-tile"
             style={{
-              width: "clamp(260px, 40%, 480px)",
+              width: "clamp(260px, 42%, 500px)",
               aspectRatio: "16/9",
               flexShrink: 0,
+              position: "relative",
             }}
           >
             <video
@@ -437,9 +479,10 @@ const Room = () => {
           <div
             className="video-tile"
             style={{
-              width: "clamp(260px, 40%, 480px)",
+              width: "clamp(260px, 42%, 500px)",
               aspectRatio: "16/9",
               flexShrink: 0,
+              position: "relative",
             }}
           >
             <video
@@ -524,26 +567,14 @@ const Room = () => {
             <FaDesktop />
           </button>
 
-          {/* Call user (if remote is waiting) */}
-          {remoteSocketId && !connectionStatus.includes("connected") && (
+          {/* Call button — only show when a remote participant is in room but call hasn't started */}
+          {remoteSocketId && !callActive && (
             <button
               onClick={handleCallUser}
               title="Start call"
               className="control-btn control-btn-active"
-              style={{ fontSize: "1rem" }}
             >
-              📞
-            </button>
-          )}
-
-          {/* Call user shortcut when connected */}
-          {remoteSocketId && (
-            <button
-              onClick={handleCallUser}
-              title="(Re)start call"
-              className="control-btn control-btn-active"
-            >
-              📞
+              <FaPhone />
             </button>
           )}
 

@@ -2,74 +2,100 @@ import Navbar from "../components/Navbar";
 
 const About = () => {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 to-blue-100">
-      {/* Navbar */}
+    <div
+      className="noise"
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg-base)",
+        color: "var(--text-primary)",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="flex flex-col items-center text-center mt-24 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl sm:text-5xl font-bold text-indigo-700 mb-4">
+      {/* Background orbs */}
+      <div className="orb orb-3" style={{ top: "-100px", left: "-100px", width: 400, height: 400 }} />
+      <div className="orb" style={{ bottom: "-100px", right: "-100px", width: 500, height: 500, background: "radial-gradient(circle, rgba(192,132,252,0.15) 0%, transparent 70%)" }} />
+
+      <section
+        style={{
+          flex: 1,
+          padding: "8rem 1.5rem 4rem",
+          maxWidth: 900,
+          margin: "0 auto",
+          width: "100%",
+          position: "relative",
+          zIndex: 2,
+        }}
+        className="text-center"
+      >
+        <h1
+          className="font-display gradient-text reveal reveal-d1"
+          style={{
+            fontSize: "clamp(2.5rem, 6vw, 4rem)",
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+            marginBottom: "1rem",
+          }}
+        >
           About VideoMeet
         </h1>
-        <p className="text-gray-700 max-w-2xl mb-6">
-          VideoMeet is a modern video calling application that allows you to 
-          connect with your colleagues, friends, and family instantly. Experience 
-          seamless communication with crystal-clear video and audio quality.
+        <p
+          className="reveal reveal-d2"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "1.1rem",
+            maxWidth: 600,
+            margin: "0 auto 3rem",
+            lineHeight: 1.6,
+          }}
+        >
+          VideoMeet is a modern, high-performance video communication platform designed to bring people together instantly, securely, and without boundaries.
         </p>
-        <img
-          src="https://via.placeholder.com/800x400.png?text=Video+Call+Illustration"
-          alt="Video call illustration"
-          className="rounded-xl shadow-lg w-full max-w-3xl"
-        />
-      </section>
 
-      {/* Features Section */}
-      <section className="mt-16 px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-10">
-          Key Features
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">High Quality Video</h3>
-            <p className="text-gray-600">
-              Enjoy high-definition video calls with minimal latency.
+        <div
+          className="glass-card reveal reveal-d3"
+          style={{
+            padding: "3rem",
+            textAlign: "left",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2rem",
+            marginBottom: "4rem",
+          }}
+        >
+          <div>
+            <h3 className="font-display gradient-text-accent" style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.75rem" }}>
+              Our Mission
+            </h3>
+            <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              We believe communication should be completely frictionless. No complex software downloads, no arbitrary time limits, and absolutely no compromise on privacy and security. VideoMeet was built natively on WebRTC to provide a pure, browser-based experience that connects you to anyone, anywhere, in seconds.
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">Audio Control</h3>
-            <p className="text-gray-600">
-              Mute/unmute your microphone or control speaker audio easily.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">Secure Rooms</h3>
-            <p className="text-gray-600">
-              Private rooms ensure your calls are safe and secure.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">Cross Platform</h3>
-            <p className="text-gray-600">
-              Connect from any device including mobile, tablet, and desktop.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">Instant Join</h3>
-            <p className="text-gray-600">
-              Join a room instantly with a room code and start calling.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition">
-            <h3 className="text-xl font-semibold mb-2">Easy Login</h3>
-            <p className="text-gray-600">
-              Log in quickly and securely to access your video rooms.
+          <div>
+            <h3 className="font-display gradient-text-accent" style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.75rem" }}>
+              The Technology
+            </h3>
+            <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              Leveraging advanced WebRTC infrastructure paired with globally distributed TURN relays, we ensure crystal clear, low-latency streams regardless of restrictive firewalls or varying network conditions. Every single byte is end-to-end encrypted (DTLS-SRTP), giving you complete peace of mind.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="text-center text-gray-600 py-6 mt-16 border-t border-gray-200">
+      <footer
+        style={{
+          background: "var(--bg-surface)",
+          borderTop: "1px solid var(--border)",
+          padding: "2rem 1.5rem",
+          textAlign: "center",
+          color: "var(--text-muted)",
+          fontSize: "0.85rem",
+        }}
+      >
         © {new Date().getFullYear()} VideoMeet — All Rights Reserved.
       </footer>
     </div>

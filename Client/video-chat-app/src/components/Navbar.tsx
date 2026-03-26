@@ -18,6 +18,7 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -190,8 +191,13 @@ const Navbar: React.FC = () => {
                 <FaVideo size={12} />
                 Dashboard
               </Link>
-              <div className="relative group" style={{ position: "relative" }}>
+              <div
+                style={{ position: "relative" }}
+                onMouseEnter={() => setDropdownOpen(true)}
+                onMouseLeave={() => setDropdownOpen(false)}
+              >
                 <button
+                  onClick={() => setDropdownOpen((p) => !p)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -209,46 +215,39 @@ const Navbar: React.FC = () => {
                   <FaUserCircle size={16} style={{ color: "var(--accent-bright)" }} />
                   {user.name}
                 </button>
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 8px)",
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 10,
-                    minWidth: 140,
-                    overflow: "hidden",
-                    opacity: 0,
-                    pointerEvents: "none",
-                    transform: "translateY(-8px)",
-                    transition: "opacity 0.2s, transform 0.2s",
-                  }}
-                  className="group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0"
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.opacity = "1";
-                    el.style.pointerEvents = "auto";
-                    el.style.transform = "translateY(0)";
-                  }}
-                >
-                  <button
-                    onClick={handleLogout}
+                {dropdownOpen && (
+                  <div
                     style={{
-                      width: "100%",
-                      padding: "0.6rem 1rem",
-                      background: "none",
-                      border: "none",
-                      color: "#ef4444",
-                      textAlign: "left",
-                      fontSize: "0.875rem",
-                      cursor: "pointer",
-                      fontFamily: "DM Sans, sans-serif",
+                      position: "absolute",
+                      right: 0,
+                      top: "calc(100% + 6px)",
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      minWidth: 140,
+                      overflow: "hidden",
+                      zIndex: 200,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                     }}
                   >
-                    Sign out
-                  </button>
-                </div>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: "100%",
+                        padding: "0.6rem 1rem",
+                        background: "none",
+                        border: "none",
+                        color: "#ef4444",
+                        textAlign: "left",
+                        fontSize: "0.875rem",
+                        cursor: "pointer",
+                        fontFamily: "DM Sans, sans-serif",
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           ) : (
