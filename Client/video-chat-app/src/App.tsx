@@ -14,7 +14,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 /** Redirect already-authenticated users away from public auth pages */
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem("access_token");
-  return token ? <Navigate to="/home" replace /> : <>{children}</>;
+  const isValid = token && token !== "undefined" && token !== "null";
+  return isValid ? <Navigate to="/home" replace /> : <>{children}</>;
 };
 
 const ScrollToLocation = () => {
@@ -43,7 +44,7 @@ const App = () => {
       <ScrollToLocation />
       <Routes>
         {/* Public / marketing pages */}
-        <Route path="/" element={<Mainfrontpage />} />
+        <Route path="/" element={<PublicRoute><Mainfrontpage /></PublicRoute>} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/services" element={<Services />} />

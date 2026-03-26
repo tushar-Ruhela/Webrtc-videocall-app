@@ -191,11 +191,7 @@ const Navbar: React.FC = () => {
                 <FaVideo size={12} />
                 Dashboard
               </Link>
-              <div
-                style={{ position: "relative" }}
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-              >
+              <div style={{ position: "relative" }}>
                 <button
                   onClick={() => setDropdownOpen((p) => !p)}
                   style={{
@@ -216,37 +212,43 @@ const Navbar: React.FC = () => {
                   {user.name}
                 </button>
                 {dropdownOpen && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      top: "calc(100% + 6px)",
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 10,
-                      minWidth: 140,
-                      overflow: "hidden",
-                      zIndex: 200,
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                    }}
-                  >
-                    <button
-                      onClick={handleLogout}
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 190 }}
+                      onClick={() => setDropdownOpen(false)}
+                    />
+                    <div
                       style={{
-                        width: "100%",
-                        padding: "0.6rem 1rem",
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        textAlign: "left",
-                        fontSize: "0.875rem",
-                        cursor: "pointer",
-                        fontFamily: "DM Sans, sans-serif",
+                        position: "absolute",
+                        right: 0,
+                        top: "calc(100% + 6px)",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        minWidth: 140,
+                        overflow: "hidden",
+                        zIndex: 200,
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                       }}
                     >
-                      Sign out
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleLogout}
+                        style={{
+                          width: "100%",
+                          padding: "0.6rem 1rem",
+                          background: "none",
+                          border: "none",
+                          color: "#ef4444",
+                          textAlign: "left",
+                          fontSize: "0.875rem",
+                          cursor: "pointer",
+                          fontFamily: "DM Sans, sans-serif",
+                        }}
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             </>
