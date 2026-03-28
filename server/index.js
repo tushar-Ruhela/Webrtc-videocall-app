@@ -11,7 +11,7 @@ function initSocket(server) {
 
   const emailToSocketId = new Map();
   const socketIdToEmail = new Map();
-  // roomId → Set of socket ids
+  
   const roomToSockets = new Map();
 
   io.on("connection", (socket) => {
@@ -52,13 +52,6 @@ function initSocket(server) {
       io.to(to).emit("call:accepted", { from: socket.id, ans });
     });
 
-    socket.on("peer:nego:needed", ({ to, offer }) => {
-      io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
-    });
-
-    socket.on("peer:nego:done", ({ to, ans }) => {
-      io.to(to).emit("peer:nego:final", { from: socket.id, ans });
-    });
 
     // ── ICE candidate relay ────────────────────────────────────────────
     socket.on("ice:candidate", ({ to, candidate }) => {

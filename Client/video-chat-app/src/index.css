@@ -60,6 +60,15 @@ body {
   border-radius: var(--radius-md);
 }
 
+@media (max-width: 768px) {
+  html {
+    font-size: 14px; /* Scaled down rem unit for mobile */
+  }
+  .glass-card {
+    padding: 1.5rem !important;
+  }
+}
+
 /* ─── Glow Button ───────────────────────────────────────────────────────── */
 .btn-glow {
   background: var(--accent);
@@ -146,6 +155,12 @@ body {
   top: 40%; left: 60%;
   animation-duration: 7s;
   animation-delay: -2s;
+}
+
+@media (max-width: 768px) {
+  .orb {
+    display: none !important; /* Performance and layout on mobile */
+  }
 }
 
 /* ─── Stagger Reveal ────────────────────────────────────────────────────── */

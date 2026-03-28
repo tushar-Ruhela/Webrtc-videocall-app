@@ -17,8 +17,7 @@ import {
 interface UserJoinedPayload  { email: string; id: string; }
 interface IncomingCallPayload { from: string; offer: RTCSessionDescriptionInit; }
 interface CallAcceptedPayload { from: string; ans: RTCSessionDescriptionInit; }
-interface NegoNeededPayload  { from: string; offer: RTCSessionDescriptionInit; }
-interface NegoFinalPayload   { ans: RTCSessionDescriptionInit; }
+
 interface IceCandidatePayload { from: string; candidate: RTCIceCandidateInit; }
 
 const Room = () => {
@@ -40,10 +39,15 @@ const Room = () => {
   const screenStreamRef = useRef<MediaStream | null>(null);
   // Use a ref for remoteSocketId to avoid stale closures in event handlers
   const remoteSocketIdRef = useRef<string | null>(null);
+  const myStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     remoteSocketIdRef.current = remoteSocketId;
   }, [remoteSocketId]);
+
+  useEffect(() => {
+    myStreamRef.current = myStream;
+  }, [myStream]);
 
   // Get the logged-in user's email
   const userEmail = (() => {
@@ -114,32 +118,6 @@ const Room = () => {
         peerConn.addTrack(track, stream);
       }
     });
-  }, []);
-
-  // ─── Negotiation ──────────────────────────────────────────────────────────
-
-  const handleNegoNeeded = useCallback(async () => {
-    const toId = remoteSocketIdRef.current;
-    if (!toId || !socket) return;
-    const offer = await peer.getOffer();
-    socket.emit("peer:nego:needed", { offer, to: toId });
-  }, [socket]);
-
-  useEffect(() => {
-    const peerConn = peer.getPeer();
-    peerConn.onnegotiationneeded = handleNegoNeeded;
-  }, [handleNegoNeeded]);
-
-  const handleNegoIncoming = useCallback(
-    async ({ from, offer }: NegoNeededPayload) => {
-      const ans = await peer.getAnswer(offer);
-      socket?.emit("peer:nego:done", { to: from, ans });
-    },
-    [socket]
-  );
-
-  const handleNegoFinal = useCallback(async ({ ans }: NegoFinalPayload) => {
-    await peer.setRemoteDescription(ans);
   }, []);
 
   // ─── ICE candidates ───────────────────────────────────────────────────────
@@ -243,8 +221,12 @@ const Room = () => {
         setIsScreenSharing(true);
         // Auto-restore when user stops via browser button
         screenTrack.onended = restoreCamera;
-      } catch (err) {
-        console.error("Screen share error:", err);
+      } catch (err: any) {
+        if (err.name === "NotAllowedError") {
+          console.log("User denied screen share permission.");
+        } else {
+          console.error("Screen share error:", err);
+        }
       }
     }
   };
@@ -296,16 +278,21 @@ const Room = () => {
 
     socket.on("incoming:call",      handleIncomingCall);
     socket.on("call:accepted",      handleCallAccepted);
-    socket.on("peer:nego:needed",   handleNegoIncoming);
-    socket.on("peer:nego:final",    handleNegoFinal);
     socket.on("ice:candidate",      handleIceCandidate);
 
     socket.on("user:left", () => {
+      myStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      peer.resetPeer();
+      wirePeerEvents();
+      
+      setMyStream(null);
       setRemoteSocketId(null);
       remoteSocketIdRef.current = null;
       setConnectionStatus("waiting");
       setCallActive(false);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
     });
 
     return () => {
@@ -314,12 +301,10 @@ const Room = () => {
       socket.off("user:joined");
       socket.off("incoming:call",    handleIncomingCall);
       socket.off("call:accepted",    handleCallAccepted);
-      socket.off("peer:nego:needed", handleNegoIncoming);
-      socket.off("peer:nego:final",  handleNegoFinal);
       socket.off("ice:candidate",    handleIceCandidate);
       socket.off("user:left");
     };
-  }, [socket, roomId, userEmail, handleIncomingCall, handleCallAccepted, handleNegoIncoming, handleNegoFinal, handleIceCandidate]);
+  }, [socket, roomId, userEmail, handleIncomingCall, handleCallAccepted, handleIceCandidate, wirePeerEvents]);
 
   // ─── Status indicator ─────────────────────────────────────────────────────
 
@@ -422,9 +407,10 @@ const Room = () => {
           <div
             className="video-tile"
             style={{
-              width: "clamp(260px, 42%, 500px)",
+              width: "100%",
+              maxWidth: "540px",
+              flex: "1 1 300px",
               aspectRatio: "16/9",
-              flexShrink: 0,
               position: "relative",
             }}
           >
@@ -479,9 +465,10 @@ const Room = () => {
           <div
             className="video-tile"
             style={{
-              width: "clamp(260px, 42%, 500px)",
+              width: "100%",
+              maxWidth: "540px",
+              flex: "1 1 300px",
               aspectRatio: "16/9",
-              flexShrink: 0,
               position: "relative",
             }}
           >
